@@ -16,11 +16,10 @@ class Obligation:
     def __eq__(self, other):
         return self.debtor == other.debtor and self.creditor == other.creditor and self.amount == other.amount
             
-class ObligationMatrix:
+class TradeCreditNetwork:
     def __init__(self, obligations: list[Obligation]):
         """
         obligations: list of Obligation
-        Build an obligation matrix O from a list of obligations between firms such that O[i, j] is the amount that firm i owes to firm j
         """  
         assert all([isinstance(o, Obligation) for o in obligations]), "All obligations should be of type Obligation"
         assert all([o.debtor != o.creditor for o in obligations]), "There shouldn't be any self obligations"
@@ -33,25 +32,22 @@ class ObligationMatrix:
         self.nodes = sorted(self.nodes)
 
         # The obligations are stored in an obligation matrix O where O[i, j] is the amount that firm i owes to firm j
-        self.matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
+        self.obligation_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
 
         for o in obligations:
-            self.matrix.at[o.debtor, o.creditor] = o.amount
-
-        # Create a graph to represent the network
-        self.create_graph()
+            self.obligation_matrix.at[o.debtor, o.creditor] = o.amount
 
     def get_c(self):
         """
         c is a vector representing the credit of each firm
         """
-        return self.matrix.sum(axis=0)
+        return self.obligation_matrix.sum(axis=0)
     
     def get_d(self):
         """
         d is a vector representing the debit of each firm
         """
-        return self.matrix.sum(axis=1)
+        return self.obligation_matrix.sum(axis=1)
     
     def get_b(self):
         """
@@ -72,7 +68,7 @@ class ObligationMatrix:
             G.add_node(node, demand=net_balance)
 
         # For each entry in the matrix, create an edge between the two firms with capacity equal to the amount of the obligation and weight set to 1 by default
-        for (debtor, creditor), amount in self.matrix.stack().items():
+        for (debtor, creditor), amount in self.obligation_matrix.stack().items():
             if amount > 0:
                 G.add_edge(debtor, creditor, capacity=amount, weight=1)
 
@@ -90,9 +86,9 @@ class ObligationMatrix:
         flow_dict = nx.min_cost_flow(graph)
 
         # Update the matrix with the new obligations
-        self.matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
+        self.obligation_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
 
         for debtor, creditors in flow_dict.items():
             for creditor, amount in creditors.items():
                 if amount > 0:
-                    self.matrix.at[debtor, creditor] = amount    
+                    self.obligation_matrix.at[debtor, creditor] = amount
