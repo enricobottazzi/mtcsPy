@@ -1,4 +1,4 @@
-from mtcspy.mtcs import Obligation, TradeCreditNetwork
+from mtcspy.mtcs import Obligation, ObligationMatrix
 from pandas import DataFrame
 import random
 import pulp
@@ -24,19 +24,21 @@ obligations = random_obligations(100, 10000, (1, 100))
 
 def test_mtcs():
 
-    trade_credit_network = TradeCreditNetwork(obligations)
-    o_matrix_init = trade_credit_network.matrix.copy()
-    b_init = trade_credit_network.get_b()
-    trade_credit_network.mtcs()
-    b_final = trade_credit_network.get_b()
+    obligation_matrix = ObligationMatrix(obligations)
+    o_matrix_init = obligation_matrix.matrix.copy()
+    b_init = obligation_matrix.get_b()
+
+    # perform mtcs
+    obligation_matrix.mtcs()
+    b_final = obligation_matrix.get_b()
     
     # balance conservation constraint 
     assert (b_init == b_final).all()
 
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            assert 0 <= trade_credit_network.matrix.at[i, j] <= o_matrix_init.at[i, j]
+    for i in obligation_matrix.nodes:
+        for j in obligation_matrix.nodes:
+            assert 0 <= obligation_matrix.matrix.at[i, j] <= o_matrix_init.at[i, j]
 
     # perform mtcs with LP
     o_matrix_final_lp = mtcs_LP(o_matrix_init)
@@ -46,17 +48,17 @@ def test_mtcs():
 
     # assert that constraints are satisfied
     # balance conservation constraint
-    for i in trade_credit_network.nodes:
+    for i in obligation_matrix.nodes:
         net_balance_lp_i = o_matrix_final_lp.sum(axis=0).at[i] - o_matrix_final_lp.sum(axis=1).at[i]
         assert b_init[i] == b_final[i] == net_balance_lp_i
 
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
+    for i in obligation_matrix.nodes:
+        for j in obligation_matrix.nodes:
             assert 0 <= o_matrix_final_lp.at[i, j] <= o_matrix_init.at[i, j]
 
-    # fetch total obligations in trade_credit_network
-    total_obligations = trade_credit_network.matrix.sum().sum()
+    # fetch total obligations in obligation_matrix
+    total_obligations = obligation_matrix.matrix.sum().sum()
 
     # assert that the total obligations in lm and lm_final_lp are the same
     # note that the solution might not be unique but the amount of optimal flow should be the same

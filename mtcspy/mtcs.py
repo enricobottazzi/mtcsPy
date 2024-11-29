@@ -16,11 +16,11 @@ class Obligation:
     def __eq__(self, other):
         return self.debtor == other.debtor and self.creditor == other.creditor and self.amount == other.amount
             
-class TradeCreditNetwork:
+class ObligationMatrix:
     def __init__(self, obligations: list[Obligation]):
         """
         obligations: list of Obligation
-        Build a trade credit network from a list of obligations between firms 
+        Build an obligation matrix O from a list of obligations between firms such that O[i, j] is the amount that firm i owes to firm j
         """  
         assert all([isinstance(o, Obligation) for o in obligations]), "All obligations should be of type Obligation"
         assert all([o.debtor != o.creditor for o in obligations]), "There shouldn't be any self obligations"
@@ -76,15 +76,18 @@ class TradeCreditNetwork:
             if amount > 0:
                 G.add_edge(debtor, creditor, capacity=amount, weight=1)
 
-        self.graph = G
+        return G
 
 
     def mtcs(self):
         """
         Run multilateral trade credit setoff (MTCS) algorithm on the network
         """
+
+        graph = self.create_graph()
+
         # Solve the MCF problem
-        flow_dict = nx.min_cost_flow(self.graph)
+        flow_dict = nx.min_cost_flow(graph)
 
         # Update the matrix with the new obligations
         self.matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
