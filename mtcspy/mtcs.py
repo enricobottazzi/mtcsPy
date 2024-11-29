@@ -35,7 +35,7 @@ class TradeCreditNetwork:
         self.obligation_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
 
         for o in obligations:
-            self.obligation_matrix.at[o.debtor, o.creditor] = o.amount
+            self.obligation_matrix.at[o.debtor, o.creditor] += o.amount
 
     def get_c(self):
         """
