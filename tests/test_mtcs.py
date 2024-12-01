@@ -147,7 +147,7 @@ def test_shuffle_and_mtcs():
         for j in trade_credit_network.nodes:
             assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
 
-def test_perturb():
+def test_perturb_and_mtcs():
 
     trade_credit_network = TradeCreditNetwork(obligations)
     o_init = trade_credit_network.obligation_matrix.copy()
@@ -181,3 +181,39 @@ def test_perturb():
         for j in trade_credit_network.nodes:
             assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
 
+def test_shuffle_perturb_and_mtcs():
+
+    trade_credit_network = TradeCreditNetwork(obligations)
+    o_init = trade_credit_network.obligation_matrix.copy()
+    b_init = trade_credit_network.get_b().copy()
+    v_init = trade_credit_network.viability_matrix.copy()
+    viable_edges_init = v_init.sum().sum()
+
+    # shuffle the network
+    pi = np.random.permutation(len(trade_credit_network.nodes))
+    trade_credit_network.shuffle(pi)
+
+    # perturn the shuffled nextwork using a random xi between 0 and viable_edges
+    xi = random.randint(0, viable_edges_init)
+    trade_credit_network.perturb(xi)
+
+    # the number of viable edges should be the same
+    viable_edges_final = trade_credit_network.viability_matrix.sum().sum()
+    assert viable_edges_init == viable_edges_final
+
+    # run the mtcs on the shuffled and perturbed network
+    trade_credit_network.mtcs()
+
+    # unshuffle the network
+    trade_credit_network.unshuffle(pi)
+
+    o_final = trade_credit_network.obligation_matrix
+    b_final = trade_credit_network.get_b()
+
+    # assert that the constraints are met in the perturbed network
+    assert (b_init == b_final).all()
+
+    # no novel obligations constraint
+    for i in trade_credit_network.nodes:
+        for j in trade_credit_network.nodes:
+            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
