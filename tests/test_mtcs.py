@@ -115,7 +115,6 @@ def test_shuffle_unshuffle():
     assert (viability_init == trade_credit_network.viability_matrix).all().all()
 
 def test_shuffle_and_mtcs():
-
     trade_credit_network = TradeCreditNetwork(obligations)
     trade_credit_network_copy = TradeCreditNetwork(obligations)
     b_init = trade_credit_network.get_b()
@@ -144,3 +143,13 @@ def test_shuffle_and_mtcs():
     for i in trade_credit_network.nodes:
         for j in trade_credit_network.nodes:
             assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
+
+def test_perturb():
+
+    trade_credit_network = TradeCreditNetwork(obligations)
+    v_init = trade_credit_network.viability_matrix.copy()
+
+    # perturb the network using xi = 0, nothing should change
+    trade_credit_network.perturb(0)
+    assert (v_init == trade_credit_network.viability_matrix).all().all()
+

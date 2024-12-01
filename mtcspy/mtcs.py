@@ -1,6 +1,7 @@
 import pandas as pd
 import networkx as nx
 import numpy as np
+from mtcspy.utils import shuffle_matrix, unshuffle_matrix
 
 class Obligation:
     def __init__(self, debtor, creditor, amount):
@@ -104,44 +105,61 @@ class TradeCreditNetwork:
         Shuffle the obligation and viability matrices based on a random permutation `pi`
         """
 
-        o = self.obligation_matrix
-        v = self.viability_matrix
-
-        # shuffle the columns of the matrices
-        o = o[pi]
-        v = v[pi]
-
-        # shuffle the rows of the matrices
-        o = o.reindex(pi)
-        v = v.reindex(pi)
-
-        # update the matrices
-        self.obligation_matrix = o
-        self.viability_matrix = v
+        self.obligation_matrix = shuffle_matrix(self.obligation_matrix, pi)
+        self.viability_matrix = shuffle_matrix(self.viability_matrix, pi)
 
     def unshuffle(self, pi):
         """
         Unshuffle the matrices to restore original order based on the permutation `pi` used for shuffling
         """
 
-        # Create inverse permutation
-        n = len(pi)
-        inv_pi = pd.Series(range(n), index=pi)
-        
-        o = self.obligation_matrix
-        v = self.viability_matrix
+        self.obligation_matrix = unshuffle_matrix(self.obligation_matrix, pi)
+        self.viability_matrix = unshuffle_matrix(self.viability_matrix, pi)
 
-        # unshuffle the columns using inverse permutation
-        o = o[inv_pi]
-        v = v[inv_pi]
+    def perturb(self, xi):
+        """
+        Perturb the viability matrix using random add/del techinque with parameter xi
+        """
 
-        # unshuffle the rows using inverse permutation
-        o = o.reindex(inv_pi)
-        v = v.reindex(inv_pi)
+        n = len(self.nodes)
 
-        # update the matrices
-        self.obligation_matrix = o
-        self.viability_matrix = v
+        # flatten the viability matrix
+        viability_vector = self.viability_matrix.to_numpy().flatten()
+
+        # shuffle the viability vector using a random permutation
+        pi_1 = np.random.permutation(len(viability_vector))
+        viability_vector = viability_vector[pi_1]
+
+        # delete the first xi viable edges from the viability vector
+        del_count = 0
+        for i in range (n * n):
+            if del_count == xi:
+                break
+            if viability_vector[i] == 1:
+                viability_vector[i] = 0
+                del_count += 1
+
+        # shuffle the viability vector once again using a different random permutation
+        pi_2 = np.random.permutation(len(viability_vector))
+        viability_vector = viability_vector[pi_2]
+
+        # add the first xi viable edges to the partially perturbed viability vector
+        add_count = 0
+        for i in range (n * n):
+            if add_count == xi:
+                break
+            if viability_vector[i] == 0:
+                viability_vector[i] = 1
+                add_count += 1
+
+        # unshuffle the viability vector using the inverse permutation pi_2
+        viability_vector = viability_vector[np.argsort(pi_2)]
+
+        # unshuffle the viability vector using the inverse permutation pi_1
+        viability_vector = viability_vector[np.argsort(pi_1)]
+
+        # reshape the viability vector to a matrix
+        self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)
 
 
 # TODO: 
