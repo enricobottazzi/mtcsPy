@@ -170,6 +170,3 @@ class TradeCreditNetwork:
         # reshape the viability vector to a matrix
         self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)
         self.perturbed = True
-
-# TODO: 
-# - Do I need to unshuffle the viability matrix too?
