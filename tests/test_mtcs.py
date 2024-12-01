@@ -21,7 +21,7 @@ def random_obligations(n, e, amount_range):
     
     return obligations
 
-obligations = random_obligations(100, 10000, (1, 10))
+obligations = random_obligations(100, 10000, (1, 1000))
 
 def test_mtcs():
 
@@ -129,11 +129,14 @@ def test_shuffle_and_mtcs():
     trade_credit_network.shuffle(pi)
     trade_credit_network.mtcs()
     total_obligations_shuffled = trade_credit_network.obligation_matrix.sum().sum()
-    o_final = trade_credit_network.obligation_matrix
-    b_final = trade_credit_network.get_b()
 
     # assert that the total obligations left in the network are the same
     assert total_obligations == total_obligations_shuffled
+
+    # unshuffle the network
+    trade_credit_network.unshuffle(pi)
+    o_final = trade_credit_network.obligation_matrix
+    b_final = trade_credit_network.get_b()
 
     # assert that the constraints are met in the shuffled network
     # balance conservation constraint
