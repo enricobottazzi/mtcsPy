@@ -168,16 +168,6 @@ def test_perturb():
     trade_credit_network.mtcs()
 
     o_final = trade_credit_network.obligation_matrix
-    v_final = trade_credit_network.viability_matrix
-
-    # recover the output obligations matrix
-    o_output = o_final.copy()
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            if o_init.at[i, j] != 0 and v_final.at[i, j] == 0:
-                o_output.at[i, j] += o_init.at[i, j]
-
-    trade_credit_network.obligation_matrix = o_output
     b_final = trade_credit_network.get_b()
 
     # assert that the constraints are met in the perturbed network
@@ -186,5 +176,5 @@ def test_perturb():
     # no novel obligations constraint
     for i in trade_credit_network.nodes:
         for j in trade_credit_network.nodes:
-            assert 0 <= o_output.at[i, j] <= o_init.at[i, j]
+            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
 

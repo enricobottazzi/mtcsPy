@@ -44,6 +44,8 @@ class TradeCreditNetwork:
             for j in self.nodes:
                 if self.obligation_matrix.at[i, j] > 0:
                     self.viability_matrix.at[i, j] = 1
+
+        self.perturbed = False
     
     def get_c(self):
         """
@@ -67,29 +69,45 @@ class TradeCreditNetwork:
         """
         Run multilateral trade credit setoff (MTCS) algorithm on the network
         """
-        G = nx.DiGraph()
 
+        obligation_matrix = self.obligation_matrix
         b = self.get_b()
+
+        if self.perturbed: 
+            # as a consequence of perturbation, some edges are no longer viable, so we need to update the obligation matrix
+            obligation_matrix = self.obligation_matrix * self.viability_matrix
+            b = obligation_matrix.sum(axis=0) - obligation_matrix.sum(axis=1)
+
+        G = nx.DiGraph()
 
         # create a node for each firm where the node demand is the net balance of the firm 
         for node, net_balance in b.items():
             G.add_node(node, demand=net_balance)
 
-        # For each entry in the matrix, create an edge between the two firms with capacity equal to the amount of the obligation and weight set to 1 by default
-        for (debtor, creditor), amount in self.obligation_matrix.stack().items():
+        # for each entry in the matrix, create an edge between the two firms with capacity equal to the amount of the obligation and weight set to 1 by default
+        for (debtor, creditor), amount in obligation_matrix.stack().items():
             if amount > 0:
                 G.add_edge(debtor, creditor, capacity=amount, weight=1)
 
-        # Solve the MCF problem
+        # solve the MCF problem
         flow_dict = nx.min_cost_flow(G)
 
-        # Update the matrix with the new obligations
-        self.obligation_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
+        # update the matrix with the new obligations
+        obligation_matrix_output = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
 
         for debtor, creditors in flow_dict.items():
             for creditor, amount in creditors.items():
                 if amount > 0:
-                    self.obligation_matrix.at[debtor, creditor] = amount
+                    obligation_matrix_output.at[debtor, creditor] = amount
+
+        # if perturbed, add back the obligations for the edges that were removed during perturbation (but not settled!)
+        if self.perturbed:
+            for i in self.nodes:
+                for j in self.nodes:
+                    if self.obligation_matrix.at[i, j] > 0 and self.viability_matrix.at[i, j] == 0:
+                        obligation_matrix_output.at[i, j] = self.obligation_matrix.at[i, j]
+
+        self.obligation_matrix = obligation_matrix_output
 
     def shuffle(self, pi):
         """
@@ -151,9 +169,7 @@ class TradeCreditNetwork:
 
         # reshape the viability vector to a matrix
         self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)
-
-        # update the obligation matrix based on the perturbed viability matrix
-        self.obligation_matrix = self.obligation_matrix * self.viability_matrix
+        self.perturbed = True
 
 # TODO: 
 # - Do I need to unshuffle the viability matrix too?
