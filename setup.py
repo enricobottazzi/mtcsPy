@@ -6,6 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'networkx==3.2',
+        'numpy==1.24.1',
         'pandas==2.2.2',
         'pytest==7.4.0',
         'PuLP==2.8.0',

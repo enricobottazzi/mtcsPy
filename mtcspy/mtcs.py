@@ -1,5 +1,6 @@
 import pandas as pd
 import networkx as nx
+import numpy as np
 
 class Obligation:
     def __init__(self, debtor, creditor, amount):
@@ -33,10 +34,16 @@ class TradeCreditNetwork:
 
         # The obligations are stored in an obligation matrix O where O[i, j] is the amount that firm i owes to firm j
         self.obligation_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
+        self.viability_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
 
         for o in obligations:
             self.obligation_matrix.at[o.debtor, o.creditor] += o.amount
 
+        for i in self.nodes:
+            for j in self.nodes:
+                if self.obligation_matrix.at[i, j] > 0:
+                    self.viability_matrix.at[i, j] = 1
+    
     def get_c(self):
         """
         c is a vector representing the credit of each firm
@@ -74,7 +81,6 @@ class TradeCreditNetwork:
 
         return G
 
-
     def mtcs(self):
         """
         Run multilateral trade credit setoff (MTCS) algorithm on the network
@@ -92,3 +98,51 @@ class TradeCreditNetwork:
             for creditor, amount in creditors.items():
                 if amount > 0:
                     self.obligation_matrix.at[debtor, creditor] = amount
+
+    def shuffle(self, pi):
+        """
+        Shuffle the obligation and viability matrices based on a random permutation `pi`
+        """
+
+        o = self.obligation_matrix
+        v = self.viability_matrix
+
+        # shuffle the columns of the matrices
+        o = o[pi]
+        v = v[pi]
+
+        # shuffle the rows of the matrices
+        o = o.reindex(pi)
+        v = v.reindex(pi)
+
+        # update the matrices
+        self.obligation_matrix = o
+        self.viability_matrix = v
+
+    def unshuffle(self, pi):
+        """
+        Unshuffle the matrices to restore original order based on the permutation `pi` used for shuffling
+        """
+
+        # Create inverse permutation
+        n = len(pi)
+        inv_pi = pd.Series(range(n), index=pi)
+        
+        o = self.obligation_matrix
+        v = self.viability_matrix
+
+        # unshuffle the columns using inverse permutation
+        o = o[inv_pi]
+        v = v[inv_pi]
+
+        # unshuffle the rows using inverse permutation
+        o = o.reindex(inv_pi)
+        v = v.reindex(inv_pi)
+
+        # update the matrices
+        self.obligation_matrix = o
+        self.viability_matrix = v
+
+
+# TODO: 
+# - Do I need to unshuffle the obligation matrix too?

@@ -1,5 +1,6 @@
 from mtcspy.mtcs import Obligation, TradeCreditNetwork
 from pandas import DataFrame
+import numpy as np
 import random
 import pulp
 
@@ -96,3 +97,50 @@ def mtcs_LP(matrix: DataFrame):
         matrix.loc[i, j] -= int(round(settled_amount, 2))
 
     return matrix
+
+def test_shuffle_unshuffle():
+        
+    trade_credit_network = TradeCreditNetwork(obligations)
+    o_init = trade_credit_network.obligation_matrix.copy()
+    viability_init = trade_credit_network.viability_matrix.copy()
+
+    pi = np.random.permutation(len(trade_credit_network.nodes))
+
+    # shuffle and unshuffle the network based on a random permutation
+    trade_credit_network.shuffle(pi)
+    trade_credit_network.unshuffle(pi)
+
+    # assert that the matrices are the same
+    assert (o_init == trade_credit_network.obligation_matrix).all().all()
+    assert (viability_init == trade_credit_network.viability_matrix).all().all()
+
+def test_shuffle_and_mtcs():
+
+    trade_credit_network = TradeCreditNetwork(obligations)
+    trade_credit_network_copy = TradeCreditNetwork(obligations)
+    b_init = trade_credit_network.get_b()
+    o_init = trade_credit_network.obligation_matrix.copy()
+
+    # perform mtcs over a copy of the network
+    trade_credit_network_copy.mtcs()
+    total_obligations = trade_credit_network_copy.obligation_matrix.sum().sum()
+
+    # perform mtcs over a shuffled network
+    pi = np.random.permutation(len(trade_credit_network.nodes))
+    trade_credit_network.shuffle(pi)
+    trade_credit_network.mtcs()
+    total_obligations_shuffled = trade_credit_network.obligation_matrix.sum().sum()
+    o_final = trade_credit_network.obligation_matrix
+    b_final = trade_credit_network.get_b()
+
+    # assert that the total obligations left in the network are the same
+    assert total_obligations == total_obligations_shuffled
+
+    # assert that the constraints are met in the shuffled network
+    # balance conservation constraint
+    assert (b_init == b_final).all()
+
+    # no novel obligations constraint
+    for i in trade_credit_network.nodes:
+        for j in trade_credit_network.nodes:
+            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
