@@ -63,9 +63,9 @@ class TradeCreditNetwork:
         """
         return self.get_c() - self.get_d()
 
-    def create_graph(self):
+    def mtcs(self):
         """
-        Create a nx graph for the payment system
+        Run multilateral trade credit setoff (MTCS) algorithm on the network
         """
         G = nx.DiGraph()
 
@@ -80,17 +80,8 @@ class TradeCreditNetwork:
             if amount > 0:
                 G.add_edge(debtor, creditor, capacity=amount, weight=1)
 
-        return G
-
-    def mtcs(self):
-        """
-        Run multilateral trade credit setoff (MTCS) algorithm on the network
-        """
-
-        graph = self.create_graph()
-
         # Solve the MCF problem
-        flow_dict = nx.min_cost_flow(graph)
+        flow_dict = nx.min_cost_flow(G)
 
         # Update the matrix with the new obligations
         self.obligation_matrix = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
@@ -161,6 +152,8 @@ class TradeCreditNetwork:
         # reshape the viability vector to a matrix
         self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)
 
+        # update the obligation matrix based on the perturbed viability matrix
+        self.obligation_matrix = self.obligation_matrix * self.viability_matrix
 
 # TODO: 
-# - Do I need to unshuffle the obligation matrix too?
+# - Do I need to unshuffle the viability matrix too?

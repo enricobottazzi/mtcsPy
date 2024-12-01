@@ -1,6 +1,6 @@
 import pandas as pd
 
-def shuffle_matrix(matrix, pi):
+def shuffle_matrix(matrix: pd.DataFrame, pi):
     """
     Shuffle a matrix on a random permutation `pi`
     """
@@ -13,7 +13,7 @@ def shuffle_matrix(matrix, pi):
 
     return matrix
 
-def unshuffle_matrix(matrix, pi):
+def unshuffle_matrix(matrix: pd.DataFrame, pi):
     """
     Unshuffle a shuffle matrix to restore original order based on the permutation `pi` used for shuffling
     """

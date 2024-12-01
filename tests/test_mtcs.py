@@ -1,5 +1,5 @@
 from mtcspy.mtcs import Obligation, TradeCreditNetwork
-from pandas import DataFrame
+import pandas as pd
 import numpy as np
 import random
 import pulp
@@ -21,13 +21,13 @@ def random_obligations(n, e, amount_range):
     
     return obligations
 
-obligations = random_obligations(100, 10000, (1, 100))
+obligations = random_obligations(100, 10000, (1, 10))
 
 def test_mtcs():
 
     trade_credit_network = TradeCreditNetwork(obligations)
     o_init = trade_credit_network.obligation_matrix.copy()
-    b_init = trade_credit_network.get_b()
+    b_init = trade_credit_network.get_b().copy()
 
     # perform mtcs
     trade_credit_network.mtcs()
@@ -60,7 +60,7 @@ def test_mtcs():
     # note that the solution might not be unique but the amount of optimal flow should be the same
     assert o_final.sum().sum() == o_final_lp.sum().sum()
 
-def mtcs_LP(matrix: DataFrame):
+def mtcs_LP(matrix: pd.DataFrame):
     """
     Solve the MTCS problem using linear programming
     """
@@ -117,7 +117,7 @@ def test_shuffle_unshuffle():
 def test_shuffle_and_mtcs():
     trade_credit_network = TradeCreditNetwork(obligations)
     trade_credit_network_copy = TradeCreditNetwork(obligations)
-    b_init = trade_credit_network.get_b()
+    b_init = trade_credit_network.get_b().copy()
     o_init = trade_credit_network.obligation_matrix.copy()
 
     # perform mtcs over a copy of the network
@@ -147,9 +147,44 @@ def test_shuffle_and_mtcs():
 def test_perturb():
 
     trade_credit_network = TradeCreditNetwork(obligations)
+    o_init = trade_credit_network.obligation_matrix.copy()
+    b_init = trade_credit_network.get_b().copy()
     v_init = trade_credit_network.viability_matrix.copy()
+    viable_edges_init = v_init.sum().sum()
 
     # perturb the network using xi = 0, nothing should change
     trade_credit_network.perturb(0)
     assert (v_init == trade_credit_network.viability_matrix).all().all()
+
+    # perturn the nextwork using a random xi between 0 and viable_edges
+    xi = random.randint(0, viable_edges_init)
+    trade_credit_network.perturb(xi)
+
+    # the number of viable edges should be the same
+    viable_edges_final = trade_credit_network.viability_matrix.sum().sum()
+    assert viable_edges_init == viable_edges_final
+
+    # run the mtcs on the perturbed network
+    trade_credit_network.mtcs()
+
+    o_final = trade_credit_network.obligation_matrix
+    v_final = trade_credit_network.viability_matrix
+
+    # recover the output obligations matrix
+    o_output = o_final.copy()
+    for i in trade_credit_network.nodes:
+        for j in trade_credit_network.nodes:
+            if o_init.at[i, j] != 0 and v_final.at[i, j] == 0:
+                o_output.at[i, j] += o_init.at[i, j]
+
+    trade_credit_network.obligation_matrix = o_output
+    b_final = trade_credit_network.get_b()
+
+    # assert that the constraints are met in the perturbed network
+    assert (b_init == b_final).all()
+
+    # no novel obligations constraint
+    for i in trade_credit_network.nodes:
+        for j in trade_credit_network.nodes:
+            assert 0 <= o_output.at[i, j] <= o_init.at[i, j]
 
