@@ -40,10 +40,7 @@ class TradeCreditNetwork:
         for o in obligations:
             self.obligation_matrix.at[o.debtor, o.creditor] += o.amount
 
-        for i in self.nodes:
-            for j in self.nodes:
-                if self.obligation_matrix.at[i, j] > 0:
-                    self.viability_matrix.at[i, j] = 1
+        self.viability_matrix = (self.obligation_matrix > 0).astype(int)
 
         self.perturbed = False
     
@@ -65,9 +62,10 @@ class TradeCreditNetwork:
         """
         return self.get_c() - self.get_d()
 
-    def mtcs(self):
+    def mtcs(self, w=None):
         """
         Run multilateral trade credit setoff (MTCS) algorithm on the network
+        `w` indicates the number of network simplex iterations
         """
 
         obligation_matrix = self.obligation_matrix
@@ -90,7 +88,7 @@ class TradeCreditNetwork:
                 G.add_edge(debtor, creditor, capacity=amount, weight=1)
 
         # solve the MCF problem
-        flow_dict = nx.min_cost_flow(G)
+        flow_dict = nx.min_cost_flow(G, max_iter=w)
 
         # update the matrix with the new obligations
         obligation_matrix_output = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
@@ -135,37 +133,19 @@ class TradeCreditNetwork:
         # flatten the viability matrix
         viability_vector = self.viability_matrix.to_numpy().flatten()
 
-        # shuffle the viability vector using a random permutation
-        pi_1 = np.random.permutation(len(viability_vector))
-        viability_vector = viability_vector[pi_1]
+        # Get indices of 1s and 0s
+        ones_indices = np.where(viability_vector == 1)[0]
 
-        # delete the first xi viable edges from the viability vector
-        del_count = 0
-        for i in range (n * n):
-            if del_count == xi:
-                break
-            if viability_vector[i] == 1:
-                viability_vector[i] = 0
-                del_count += 1
+        # randomly flip xi of the 1s to 0s
+        flip_indices = np.random.choice(ones_indices, xi, replace=False)
+        viability_vector[flip_indices] = 0
 
-        # shuffle the viability vector once again using a different random permutation
-        pi_2 = np.random.permutation(len(viability_vector))
-        viability_vector = viability_vector[pi_2]
+        # Get indices of 0s
+        zeros_indices = np.where(viability_vector == 0)[0]
 
-        # add the first xi viable edges to the partially perturbed viability vector
-        add_count = 0
-        for i in range (n * n):
-            if add_count == xi:
-                break
-            if viability_vector[i] == 0:
-                viability_vector[i] = 1
-                add_count += 1
-
-        # unshuffle the viability vector using the inverse permutation pi_2
-        viability_vector = viability_vector[np.argsort(pi_2)]
-
-        # unshuffle the viability vector using the inverse permutation pi_1
-        viability_vector = viability_vector[np.argsort(pi_1)]
+        # randomly flip xi of the 0s to 1s
+        flip_indices = np.random.choice(zeros_indices, xi, replace=False)
+        viability_vector[flip_indices] = 1
 
         # reshape the viability vector to a matrix
         self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)

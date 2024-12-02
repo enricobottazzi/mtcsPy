@@ -17,6 +17,14 @@ pytest tests/ -s
 
 **3. Benchmarking**
 
+Unzip the dataset
+
 ```bash
-python3 benches/bench_mtcs.py
+unzip benches/dataset.zip -d benches/data/
+```
+
+Run the benchmark
+
+```bash
+python3 -m benches.bench_mtcs
 ```
