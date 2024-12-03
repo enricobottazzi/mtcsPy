@@ -19,22 +19,22 @@ def parse_csv_to_obligations(file_path: str) -> list[Obligation]:
         List of Obligation objects
     """
     try:
-        # Read CSV file
+        # read CSV file
         df = pd.read_csv(file_path)
         
-        # Validate column names
+        # validate column names
         required_columns = {'debtor', 'creditor', 'amount'}
         if not required_columns.issubset(df.columns):
             raise ValueError(f"CSV must contain columns: {required_columns}")
             
-        # Convert DataFrame rows to Obligation objects
+        # convert DataFrame rows to Obligation objects
         obligations = []
         for _, row in df.iterrows():
-            # Validate amount is non-negative
+            # validate amount is non-negative
             if row['amount'] < 0:
                 raise ValueError(f"Found negative amount: {row['amount']}")
                 
-            # Validate debtor != creditor
+            # validate debtor != creditor
             if row['debtor'] == row['creditor']:
                 raise ValueError(f"Found self-obligation: debtor={row['debtor']}, creditor={row['creditor']}")
                 
@@ -61,10 +61,10 @@ def create_undirected_graph_from_viability_matrix(viability_matrix: pd.DataFrame
     """
     graph = nx.Graph()
 
-    # Find all pairs (i, j) for which a viable edge exists
+    # find all pairs (i, j) for which a viable edge exists
     positive_edges = viability_matrix.stack().loc[lambda x: x > 0].index
     
-    # Add edges to the graph
+    # add edges to the graph
     graph.add_edges_from(positive_edges)
     
     return graph

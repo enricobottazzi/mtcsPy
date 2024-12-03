@@ -133,14 +133,14 @@ class TradeCreditNetwork:
         # flatten the viability matrix
         viability_vector = self.viability_matrix.to_numpy().flatten()
 
-        # Get indices of 1s and 0s
+        # get indices of 1s and 0s
         ones_indices = np.where(viability_vector == 1)[0]
 
         # randomly flip xi of the 1s to 0s
         flip_indices = np.random.choice(ones_indices, xi, replace=False)
         viability_vector[flip_indices] = 0
 
-        # Get indices of 0s
+        # get indices of 0s
         zeros_indices = np.where(viability_vector == 0)[0]
 
         # randomly flip xi of the 0s to 1s
