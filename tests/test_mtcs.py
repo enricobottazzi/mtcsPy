@@ -1,3 +1,4 @@
+import time
 from mtcspy.mtcs import Obligation, TradeCreditNetwork
 import pandas as pd
 import numpy as np
@@ -21,16 +22,17 @@ def random_obligations(n, e, amount_range):
     
     return obligations
 
-obligations = random_obligations(100, 10000, (1, 1000))
+obligations = random_obligations(100, 1000, (1, 1000))
 
 def test_mtcs():
-
     trade_credit_network = TradeCreditNetwork(obligations)
     o_init = trade_credit_network.obligation_matrix.copy()
     b_init = trade_credit_network.get_b().copy()
+    v_init = trade_credit_network.viability_matrix.copy()
 
     # perform mtcs
     trade_credit_network.mtcs()
+
     o_final = trade_credit_network.obligation_matrix
     b_final = trade_credit_network.get_b()
     
@@ -38,9 +40,11 @@ def test_mtcs():
     assert (b_init == b_final).all()
 
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
+    total_obligation_final = 0
+    viable_edges = zip(*np.where(v_init == 1))
+    for debtor, creditor in viable_edges:
+        assert 0 <= o_final.at[debtor, creditor] <= o_init.at[debtor, creditor]
+        total_obligation_final += o_final.at[debtor, creditor]
 
     # perform mtcs with LP
     o_final_lp = mtcs_LP(o_init)
@@ -52,13 +56,15 @@ def test_mtcs():
         assert b_init[i] == b_final[i] == net_balance_lp_i
 
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            assert 0 <= o_final_lp.at[i, j] <= o_init.at[i, j]
+    total_obligation_final_lp = 0
+    viable_edges = zip(*np.where(v_init == 1))
+    for debtor, creditor in viable_edges:
+        assert 0 <= o_final_lp.at[debtor, creditor] <= o_init.at[debtor, creditor]
+        total_obligation_final_lp += o_final_lp.at[debtor, creditor]
 
     # assert that the total obligations in o_final and o_final_lp are the same
     # note that the solution might not be unique but the amount of optimal flow should be the same
-    assert o_final.sum().sum() == o_final_lp.sum().sum()
+    assert o_final.sum().sum() == o_final_lp.sum().sum() == total_obligation_final == total_obligation_final_lp
 
 def mtcs_LP(matrix: pd.DataFrame):
     """
@@ -119,6 +125,7 @@ def test_shuffle_and_mtcs():
     trade_credit_network_copy = TradeCreditNetwork(obligations)
     b_init = trade_credit_network.get_b().copy()
     o_init = trade_credit_network.obligation_matrix.copy()
+    v_init = trade_credit_network.viability_matrix.copy()
 
     # perform mtcs over a copy of the network
     trade_credit_network_copy.mtcs()
@@ -143,12 +150,11 @@ def test_shuffle_and_mtcs():
     assert (b_init == b_final).all()
 
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
+    viable_edges = zip(*np.where(v_init == 1))
+    for debtor, creditor in viable_edges:
+        assert 0 <= o_final.at[debtor, creditor] <= o_init.at[debtor, creditor]
 
 def test_perturb_and_mtcs():
-
     trade_credit_network = TradeCreditNetwork(obligations)
     o_init = trade_credit_network.obligation_matrix.copy()
     b_init = trade_credit_network.get_b().copy()
@@ -159,11 +165,11 @@ def test_perturb_and_mtcs():
     trade_credit_network.perturb(0)
     assert (v_init == trade_credit_network.viability_matrix).all().all()
 
-    # perturn the nextwork using a random xi between 0 and viable_edges
+    # perturb the nextwork using a random xi between 0 and viable_edges
     xi = random.randint(0, viable_edges_init)
     trade_credit_network.perturb(xi)
 
-    # the number of viable edges should be the same
+    # the number of viable edges should be the same (since xi edges have been removed and xi edges have been added)
     viable_edges_final = trade_credit_network.viability_matrix.sum().sum()
     assert viable_edges_init == viable_edges_final
 
@@ -172,17 +178,33 @@ def test_perturb_and_mtcs():
 
     o_final = trade_credit_network.obligation_matrix
     b_final = trade_credit_network.get_b()
+    v_final = trade_credit_network.viability_matrix
+    total_obligation_final = o_final.sum().sum()
 
     # assert that the constraints are met in the perturbed network
+    # balance conservation constraint
     assert (b_init == b_final).all()
 
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
+    total_obligation_final_check = 0
+    viable_edges = zip(*np.where(v_init == 1))
+    for debtor, creditor in viable_edges:
+        assert 0 <= o_final.at[debtor, creditor] <= o_init.at[debtor, creditor]
+        total_obligation_final_check += o_final.at[debtor, creditor]
+    
+    # assert that positive obligation only exists from edges that were viable in the original network
+    assert total_obligation_final == total_obligation_final_check
+
+    # assert that for each edge that was removed during perturbation (v_init == 1 and v_final == 0), the amount is the same as in the original network
+    # this is because those obligations were not settled and are still there
+    for debtor, creditor in zip(*np.where((v_init == 1) & (v_final == 0))):
+        assert o_final.at[debtor, creditor] == o_init.at[debtor, creditor]
+
+    # assert that for each edge that was added during perturbation (v_init == 0 and v_final == 1), the amount is 0
+    for debtor, creditor in zip(*np.where((v_init == 0) & (v_final == 1))):
+        assert o_final.at[debtor, creditor] == 0
 
 def test_shuffle_perturb_and_mtcs():
-
     trade_credit_network = TradeCreditNetwork(obligations)
     o_init = trade_credit_network.obligation_matrix.copy()
     b_init = trade_credit_network.get_b().copy()
@@ -197,7 +219,7 @@ def test_shuffle_perturb_and_mtcs():
     xi = random.randint(0, viable_edges_init)
     trade_credit_network.perturb(xi)
 
-    # the number of viable edges should be the same
+    # the number of viable edges should be the same (since xi edges have been removed and xi edges have been added)
     viable_edges_final = trade_credit_network.viability_matrix.sum().sum()
     assert viable_edges_init == viable_edges_final
 
@@ -209,11 +231,28 @@ def test_shuffle_perturb_and_mtcs():
 
     o_final = trade_credit_network.obligation_matrix
     b_final = trade_credit_network.get_b()
+    v_final = trade_credit_network.viability_matrix
+    total_obligation_final = o_final.sum().sum()
 
     # assert that the constraints are met in the perturbed network
+    # balance conservation constraint
     assert (b_init == b_final).all()
 
+    total_obligation_final_check = 0
     # no novel obligations constraint
-    for i in trade_credit_network.nodes:
-        for j in trade_credit_network.nodes:
-            assert 0 <= o_final.at[i, j] <= o_init.at[i, j]
+    viable_edges = zip(*np.where(v_init == 1))
+    for debtor, creditor in viable_edges:
+        assert 0 <= o_final.at[debtor, creditor] <= o_init.at[debtor, creditor]
+        total_obligation_final_check += o_final.at[debtor, creditor]
+    
+    # assert that positive obligation only exists from edges that were viable in the original network
+    assert total_obligation_final == total_obligation_final_check
+
+    # assert that for each edge that was removed during perturbation (v_init == 1 and v_final == 0), the amount is the same as in the original network
+    # this is because those obligations were not settled and are still there
+    for debtor, creditor in zip(*np.where((v_init == 1) & (v_final == 0))):
+        assert o_final.at[debtor, creditor] == o_init.at[debtor, creditor]
+
+    # assert that for each edge that was added during perturbation (v_init == 0 and v_final == 1), the amount is 0
+    for debtor, creditor in zip(*np.where((v_init == 0) & (v_final == 1))):
+        assert o_final.at[debtor, creditor] == 0

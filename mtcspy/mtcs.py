@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import networkx as nx
 import numpy as np
@@ -81,11 +82,13 @@ class TradeCreditNetwork:
         # create a node for each firm where the node demand is the net balance of the firm 
         for node, net_balance in b.items():
             G.add_node(node, demand=net_balance)
-
-        # for each entry in the matrix, create an edge between the two firms with capacity equal to the amount of the obligation and weight set to 1 by default
-        for (debtor, creditor), amount in obligation_matrix.stack().items():
-            if amount > 0:
-                G.add_edge(debtor, creditor, capacity=amount, weight=1)
+        
+        # for each entry in the matrix, create an edge between the two firms
+        viable_edges = zip(*np.where(self.viability_matrix == 1))
+        for debtor, creditor in viable_edges:
+            amount = obligation_matrix.iloc[debtor, creditor]
+            if amount > 0:  # this check might be redundant depending on your data
+                G.add_edge(self.nodes[debtor], self.nodes[creditor], capacity=amount, weight=1)
 
         # solve the MCF problem
         flow_dict = nx.min_cost_flow(G, max_iter=w)
