@@ -103,12 +103,12 @@ class TradeCreditNetwork:
 
         # if perturbed, add back the obligations for the edges that were removed during perturbation (but not settled!)
         if self.perturbed:
-            # Create a boolean mask for edges that were removed during perturbation
-            removed_edges = (self.obligation_matrix > 0) & (self.viability_matrix == 0)
+            # Create a boolean mask for edges that are zero in the perturbed viability matrix
+            zero_edges = (self.viability_matrix == 0)
             
             # Use the mask to add back the original obligations
             obligation_matrix_output = obligation_matrix_output.add(
-                self.obligation_matrix.where(removed_edges, 0)
+                self.obligation_matrix.where(zero_edges, 0)
             )
 
         self.obligation_matrix = obligation_matrix_output
