@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import numpy as np
 from mtcspy.mtcs import TradeCreditNetwork
@@ -11,7 +12,7 @@ def bench_perturbation():
 
     # for each synthetic network
     for i in range(3):
-        print(f"Synthetic Network {i + 1}")
+        print(f"synthetic network {i + 1}")
         
         # load network once per dataset
         obligations = parse_csv_to_obligations(f"benches/data/synthethic_network_0{i + 1}.csv")
@@ -23,7 +24,11 @@ def bench_perturbation():
         initial_obligations = network_copy.obligation_matrix.sum().sum()
 
         # perform mtcs over a copy of the network
+        start = time.time()
         network_copy.mtcs()
+        end = time.time()
+        print("mtcs performed")
+        print(f"time taken for mtcs: {end - start} seconds")
 
         # calculate final outstanding obligations
         final_obligations = network_copy.obligation_matrix.sum().sum()
@@ -32,11 +37,12 @@ def bench_perturbation():
 
         # for each perturbation ratio
         for ratio in perturbation_ratios:
-            print(f"Processing perturbation ratio: {ratio}")
+            print(f"processing perturbation ratio: {ratio}")
             
             # run multiple iterations
             for iteration in range(n_iterations):
-                print(f"Iteration {iteration + 1} of {n_iterations} for dataset {i + 1} and perturbation ratio {ratio}")
+                start = time.time()
+                print(f"iteration {iteration + 1} of {n_iterations} for dataset {i + 1} and perturbation ratio {ratio}")
 
                 # create fresh network for each iteration
                 network = TradeCreditNetwork(obligations)
@@ -54,7 +60,7 @@ def bench_perturbation():
                 edges_to_perturb = int(viable_edges * ratio)
 
                 print("edges to perturb calculated")
-                print(f"Edges to perturb: {edges_to_perturb}")
+                print(f"edges to perturb: {edges_to_perturb}")
 
                 # perturb the network
                 network.perturb(edges_to_perturb)
@@ -73,10 +79,14 @@ def bench_perturbation():
                 total_nodes = len(degrees_initial)
                 pct_changed = (changed_nodes / total_nodes) * 100 if total_nodes > 0 else 0
                 
-                print(f"Percentage of nodes that changed degree: {pct_changed}%")
+                print(f"percentage of nodes that changed degree: {pct_changed}%")
 
+                start = time.time()
                 # Perform mtcs over the perturbed network
                 network.mtcs()
+                end = time.time()
+                print("mtcs on perturbed networkperformed")
+                print(f"time taken for mtcs: {end - start} seconds")
 
                 # calculate final outstanding obligations
                 final_obligations = network.obligation_matrix.sum().sum()
@@ -90,6 +100,9 @@ def bench_perturbation():
                 assert 0 <= pct_cleared <= 100, "Percentage of optimal cleared amount is not between 0 and 100"
 
                 print(f"Percentage of optimal cleared amount: {pct_cleared}%")
+
+                end = time.time()
+                print(f"time taken for iteration {iteration + 1} and perturbation ratio {ratio}: {end - start} seconds")
 
                 # store results
                 results.append({
@@ -164,5 +177,5 @@ def bench_network_simplex():
     print("Results saved to benches/results/network_simplex_results.csv")
 
 if __name__ == "__main__":
-    bench_network_simplex()
     bench_perturbation()
+    bench_network_simplex()
