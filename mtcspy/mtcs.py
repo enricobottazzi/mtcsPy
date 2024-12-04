@@ -156,3 +156,48 @@ class TradeCreditNetwork:
         # reshape the viability vector to a matrix
         self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)
         self.perturbed = True
+
+    # # this algorithm resembles the secure version of the algorithm described in the paper, we comment this out as it is inefficient
+    # def perturb(self, xi):
+        # n = len(self.nodes)
+    
+        # # convert viability matrix to a vector
+        # viability_vector = self.viability_matrix.to_numpy().flatten()
+
+        # # shuffle the vector based on a random permutation pi_2
+        # pi_2 = np.random.permutation(n * n)
+        # viability_vector = viability_vector[pi_2]
+
+        # # Delete first ξ randomized existing edges
+        # count_deleted = 0
+        # for i in range(n * n):
+        #     if count_deleted == xi:
+        #         break
+        #     if viability_vector[i] == 1:
+        #         viability_vector[i] = 0
+        #         count_deleted += 1
+
+        # # shuffle the vector based on a random permutation pi_3
+        # pi_3 = np.random.permutation(n * n)
+        # viability_vector = viability_vector[pi_3]
+        
+        # # Add first ξ randomized non-existing edges
+        # count_added = 0
+        # for i in range(n * n):
+        #     if count_added == xi:
+        #         break
+        #     if viability_vector[i] == 0:
+        #         viability_vector[i] = 1
+        #         count_added += 1
+        
+        # # unshuffle the vector from pi_3
+        # pi_3 = np.argsort(pi_3)
+        # viability_vector = viability_vector[pi_3]
+
+        # # unshuffle the vector from pi_2
+        # pi_2 = np.argsort(pi_2)
+        # viability_vector = viability_vector[pi_2]
+
+        # # reshape the vector to a matrix
+        # self.viability_matrix = pd.DataFrame(viability_vector.reshape(n, n), index=self.nodes, columns=self.nodes)
+        # self.perturbed = True
