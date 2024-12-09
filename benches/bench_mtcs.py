@@ -7,8 +7,8 @@ from benches.utils import parse_csv_to_obligations, create_undirected_graph_from
 def bench_perturbation():
     # initialize results storage
     results = []
-    perturbation_ratios = np.arange(0, 0.11, 0.01)  # [0.00, 0.01, 0.02, ..., 0.10]
-    n_iterations = 10
+    perturbation_ratios = np.arange(0.01, 0.21, 0.01)  # [0.00, 0.01, 0.02, ..., 0.10]
+    n_iterations = 5
 
     # for each synthetic network
     for i in range(3):
@@ -113,18 +113,12 @@ def bench_perturbation():
                     'pct_cleared': pct_cleared
                 })
                 
-    # convert results to DataFrame and save to CSV
-    results_df = pd.DataFrame(results)
-    results_df.to_csv('benches/results/perturbation_results.csv', index=False)
-    print("Results saved to benches/results/perturbation_results.csv")
+        # save results for this network to a separate CSV file
+        results_df = pd.DataFrame(results)
+        results_df.to_csv(f'benches/results/perturbation_results_network_{i+1}.csv', index=False)
+        print(f"Results saved to benches/results/perturbation_results_network_{i+1}.csv")
 
-def bench_network_simplex():
-    # Initialize results storage
-    results = []
-    
-    # Define w values to test (max iterations for network simplex)
-    w_values = [100, 500, 1000, None]  # None means unlimited iterations
-    
+def bench_network_simplex():        
     # For each synthetic network
     for i in range(3):
         print(f"Synthetic Network {i + 1}")
@@ -133,48 +127,17 @@ def bench_network_simplex():
         obligations = parse_csv_to_obligations(f"benches/data/synthethic_network_0{i + 1}.csv")
         
         # Create baseline network to get optimal solution (unlimited iterations)
-        baseline_network = TradeCreditNetwork(obligations)
-        initial_obligations = baseline_network.obligation_matrix.sum().sum()
-        
-        # Run MTCS with unlimited iterations to get optimal solution
-        baseline_network.mtcs(w=None)
-        optimal_final_obligations = baseline_network.obligation_matrix.sum().sum()
-        optimal_cleared_amount = initial_obligations - optimal_final_obligations
-        
-        print(f"Optimal cleared amount: {optimal_cleared_amount}")
-        
-        # For each w value
-        for w in w_values:
-            print(f"Processing w = {w}")
-            
-            # Create fresh network
-            network = TradeCreditNetwork(obligations)
-                    
-            # Run MTCS with current w
-            network.mtcs(w=w)
-            
-            
-            # Calculate final obligations and cleared amount
-            final_obligations = network.obligation_matrix.sum().sum()
-            cleared_amount = initial_obligations - final_obligations
-            
-            # Calculate percentage of optimal cleared amount
-            pct_optimal = (cleared_amount / optimal_cleared_amount) * 100 if optimal_cleared_amount > 0 else 100
-            
-            print(f"Cleared amount: {cleared_amount} ({pct_optimal:.2f}% of optimal)")
-            
-            # Store results
-            results.append({
-                'network': i + 1,
-                'w': 'unlimited' if w is None else w,
-                'cleared_amount': cleared_amount,
-                'pct_optimal': pct_optimal,
-            })
-    
-    # Convert results to DataFrame and save to CSV
-    results_df = pd.DataFrame(results)
-    results_df.to_csv('benches/results/network_simplex_results.csv', index=False)
-    print("Results saved to benches/results/network_simplex_results.csv")
+        network = TradeCreditNetwork(obligations)
+
+        # print the number of nodes in the network
+        print(f"Number of nodes in the network: {len(network.nodes)}")
+
+        # print the number of edges in the network
+        print(f"Number of edges in the network: {network.viability_matrix.sum().sum()}")
+
+        # Run MTCS and print the number of network simplex iterations needed
+        network.mtcs()
+
 
 if __name__ == "__main__":
     bench_perturbation()

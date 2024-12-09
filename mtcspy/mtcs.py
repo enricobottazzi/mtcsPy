@@ -63,10 +63,9 @@ class TradeCreditNetwork:
         """
         return self.get_c() - self.get_d()
 
-    def mtcs(self, w=None):
+    def mtcs(self):
         """
         Run multilateral trade credit setoff (MTCS) algorithm on the network
-        `w` indicates the number of network simplex iterations
         """
 
         obligation_matrix = self.obligation_matrix
@@ -91,7 +90,9 @@ class TradeCreditNetwork:
                 G.add_edge(self.nodes[debtor], self.nodes[creditor], capacity=amount, weight=1)
 
         # solve the MCF problem
-        flow_dict = nx.min_cost_flow(G, max_iter=w)
+        flow_dict, iterations = nx.min_cost_flow(G)
+
+        print(f"MTCS converged in {iterations} iterations")
 
         # update the matrix with the new obligations
         obligation_matrix_output = pd.DataFrame(0, index=self.nodes, columns=self.nodes)
